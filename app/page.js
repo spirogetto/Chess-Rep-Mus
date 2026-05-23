@@ -84,9 +84,6 @@ export default function Home() {
           </div>
 
           <div className="header-right">
-            {/* Library link */}
-            <Link href="/library" className="nav-link-library">Library</Link>
-
             {/* User info + sign out */}
             <div className="user-info">
               {user.photoURL && (
@@ -223,18 +220,7 @@ export default function Home() {
 
         .header-right { display: flex; align-items: center; gap: 14px; }
 
-        .nav-link-library {
-          font-size: 13px;
-          color: var(--text-secondary);
-          text-decoration: none;
-          padding: 5px 10px;
-          border-radius: 3px;
-          transition: color 0.2s;
-        }
-
-        .nav-link-library:hover { color: var(--accent-light); }
-
-        .user-info { display: flex; align-items: center; gap: 8px; }
+.user-info { display: flex; align-items: center; gap: 8px; }
 
         .avatar {
           width: 28px;
@@ -501,9 +487,7 @@ export default function Home() {
           .header-inner { height: 56px; }
           .logo-sub { display: none; }
           .user-name { display: none; }
-          .nav-link-library { padding: 5px 6px; }
-
-          .main { padding: 28px 14px; }
+.main { padding: 28px 14px; }
 
           .grid { grid-template-columns: 1fr; }
 

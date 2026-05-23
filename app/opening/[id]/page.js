@@ -392,9 +392,7 @@ export default function OpeningPage() {
         <div className="topbar-left">
           <Link href="/" className="back-btn">← Repertoire</Link>
           <div className="separator" />
-          <Link href="/library" className="library-link">Library</Link>
-          <div className="separator" />
-          {editingName ? (
+{editingName ? (
             <input
               ref={nameRef}
               className="name-input"
@@ -751,17 +749,6 @@ export default function OpeningPage() {
         }
 
         .back-btn:hover { color: var(--accent); }
-
-        .library-link {
-          color: var(--text-muted);
-          text-decoration: none;
-          font-size: 13px;
-          white-space: nowrap;
-          transition: color 0.2s;
-          flex-shrink: 0;
-        }
-
-        .library-link:hover { color: var(--accent-light); }
 
         .separator {
           width: 1px;
