@@ -6,6 +6,11 @@ export const metadata = {
   description: 'Build and study chess openings with variations',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
