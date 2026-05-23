@@ -9,6 +9,7 @@ import {
   saveOpening,
   cloneOpening,
   deleteOpening,
+  patchOpening,
   findNode,
   findPath,
   addMoveToTree,
@@ -348,6 +349,24 @@ export default function OpeningPage() {
     setEditingName(false);
   }
 
+  // ── Toggle Favorite ────────────────────────────────────────────────────────
+  async function handleToggleFavorite() {
+    if (!opening) return;
+    const next = !opening.isFavorite;
+    setOpening((prev) => ({ ...prev, isFavorite: next }));
+    await patchOpening(opening.id, { isFavorite: next });
+  }
+
+  // ── Toggle Public / Private ───────────────────────────────────────────────
+  async function handleTogglePublic() {
+    if (!opening) return;
+    const next = !opening.isPublic;
+    setOpening((prev) => ({ ...prev, isPublic: next }));
+    await patchOpening(opening.id, { isPublic: next });
+    if (next) flash('Opening is now public — anyone with the link can practice it');
+    else flash('Opening is now private');
+  }
+
   // ── Delete entire opening ─────────────────────────────────────────────────
   async function handleDeleteOpening() {
     if (!window.confirm(`Delete "${opening.name}" and all its variations? This cannot be undone.`)) return;
@@ -414,6 +433,32 @@ export default function OpeningPage() {
           </span>
         </div>
         <div className="topbar-right">
+          <button
+            className={`btn-favorite ${opening.isFavorite ? 'btn-favorite-active' : ''}`}
+            onClick={handleToggleFavorite}
+            title={opening.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            {opening.isFavorite ? '★' : '☆'}
+          </button>
+          <button
+            className={`btn-public ${opening.isPublic ? 'btn-public-on' : ''}`}
+            onClick={handleTogglePublic}
+            title={opening.isPublic ? 'Public — click to make private' : 'Private — click to make public'}
+          >
+            {opening.isPublic ? '🌐 Public' : '🔒 Private'}
+          </button>
+          {opening.isPublic && (
+            <button
+              className="btn-copy-link"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/explore/${opening.id}`);
+                flash('Link copied!');
+              }}
+              title="Copy shareable link"
+            >
+              Copy Link
+            </button>
+          )}
           <button className="btn-delete-opening" onClick={handleDeleteOpening} title="Delete this opening">
             🗑 Delete
           </button>
@@ -718,7 +763,51 @@ export default function OpeningPage() {
           min-width: 0;
         }
 
-        .topbar-right { flex-shrink: 0; }
+        .topbar-right { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+
+        .btn-favorite {
+          background: transparent;
+          border: 1px solid var(--border);
+          color: var(--text-muted);
+          padding: 5px 10px;
+          font-size: 16px;
+          line-height: 1;
+          border-radius: 3px;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+        .btn-favorite:hover { color: var(--accent); border-color: rgba(201,168,76,0.4); }
+        .btn-favorite-active { color: var(--accent) !important; border-color: rgba(201,168,76,0.5) !important; background: rgba(201,168,76,0.08) !important; }
+
+        .btn-public {
+          background: transparent;
+          border: 1px solid var(--border);
+          color: var(--text-muted);
+          padding: 5px 12px;
+          font-family: var(--font-body);
+          font-size: 12px;
+          border-radius: 3px;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+        .btn-public:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+        .btn-public-on { color: #6dba7c !important; border-color: rgba(109,186,124,0.35) !important; background: rgba(109,186,124,0.07) !important; }
+
+        .btn-copy-link {
+          background: transparent;
+          border: 1px solid rgba(201,168,76,0.25);
+          color: var(--accent);
+          padding: 5px 12px;
+          font-family: var(--font-body);
+          font-size: 12px;
+          border-radius: 3px;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+        .btn-copy-link:hover { background: rgba(201,168,76,0.1); }
 
         .btn-delete-opening {
           background: transparent;
@@ -1248,10 +1337,11 @@ export default function OpeningPage() {
         @media (max-width: 768px) {
           .topbar { padding: 0 12px; height: 50px; gap: 8px; }
           .separator { display: none; }
-          .library-link { display: none; }
           .back-btn { font-size: 12px; }
           .opening-title { font-size: 15px; }
           .btn-delete-opening { padding: 4px 8px; font-size: 11px; }
+          .btn-public { font-size: 11px; padding: 4px 8px; }
+          .btn-copy-link { display: none; }
           .badge { display: none; }
 
           .body { flex-direction: column; overflow: visible; }

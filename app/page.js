@@ -2,16 +2,111 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getOpenings, createOpening, deleteOpening, countMoves, maxDepth } from '../lib/store';
+import { useRouter } from 'next/navigation';
+import { getOpenings, createOpening, deleteOpening, patchOpening, countMoves, maxDepth, getAllVariants } from '../lib/store';
 import { useAuth } from '../components/AuthProvider';
 import CreateModal from '../components/CreateModal';
 import LoginScreen from '../components/LoginScreen';
 import Footer from '../components/Footer';
 
+// ─── Random Practice Modal ────────────────────────────────────────────────
+function RandomPracticeModal({ openings, onClose, onGo }) {
+  const [pool, setPool] = useState('all');
+  const favCount = openings.filter((o) => o.isFavorite).length;
+
+  return (
+    <div className="rp-overlay" onClick={onClose}>
+      <div className="rp-modal" onClick={(e) => e.stopPropagation()}>
+        <h2 className="rp-title">⚡ Random Practice</h2>
+        <p className="rp-sub">We'll pick a random opening and variant from your chosen pool.</p>
+
+        <div className="rp-options">
+          <label className={`rp-opt ${pool === 'all' ? 'rp-opt-active' : ''}`}>
+            <input type="radio" name="pool" value="all" checked={pool === 'all'} onChange={() => setPool('all')} />
+            <span className="rp-opt-label">All openings</span>
+            <span className="rp-opt-count">{openings.length}</span>
+          </label>
+          <label className={`rp-opt ${pool === 'favorites' ? 'rp-opt-active' : ''}`}>
+            <input type="radio" name="pool" value="favorites" checked={pool === 'favorites'} onChange={() => setPool('favorites')} />
+            <span className="rp-opt-label">★ Favorites only</span>
+            <span className="rp-opt-count">{favCount}</span>
+          </label>
+        </div>
+
+        <div className="rp-actions">
+          <button className="rp-btn-go" onClick={() => onGo(pool)}>⚡ Go!</button>
+          <button className="rp-btn-cancel" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .rp-overlay {
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.65);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 1000; padding: 16px;
+        }
+        .rp-modal {
+          background: var(--bg-card);
+          border: 1px solid var(--border-strong);
+          border-radius: 8px;
+          padding: 28px 28px 24px;
+          width: 100%; max-width: 360px;
+          box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+        }
+        .rp-title {
+          font-family: var(--font-display);
+          font-size: 22px; font-weight: 700;
+          color: var(--accent-light); margin-bottom: 8px;
+        }
+        .rp-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 22px; }
+        .rp-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+        .rp-opt {
+          display: flex; align-items: center; gap: 10px;
+          border: 1px solid var(--border);
+          border-radius: 5px; padding: 12px 14px;
+          cursor: pointer; transition: all 0.18s;
+        }
+        .rp-opt:hover { border-color: var(--border-strong); }
+        .rp-opt-active {
+          border-color: rgba(201,168,76,0.4);
+          background: rgba(201,168,76,0.06);
+        }
+        .rp-opt input { accent-color: var(--accent); }
+        .rp-opt-label { font-size: 14px; color: var(--text-primary); flex: 1; }
+        .rp-opt-count {
+          font-size: 12px; color: var(--text-muted);
+          background: rgba(255,255,255,0.06);
+          padding: 2px 8px; border-radius: 10px;
+        }
+        .rp-actions { display: flex; gap: 10px; }
+        .rp-btn-go {
+          flex: 1;
+          background: var(--accent); color: #1a1408;
+          border: none; border-radius: 4px;
+          padding: 10px 0; font-family: var(--font-body);
+          font-size: 14px; font-weight: 700;
+          cursor: pointer; transition: background 0.2s;
+        }
+        .rp-btn-go:hover { background: var(--accent-light); }
+        .rp-btn-cancel {
+          background: transparent; border: 1px solid var(--border);
+          color: var(--text-muted); border-radius: 4px;
+          padding: 10px 18px; font-family: var(--font-body);
+          font-size: 13px; cursor: pointer; transition: all 0.2s;
+        }
+        .rp-btn-cancel:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+      `}</style>
+    </div>
+  );
+}
+
 export default function Home() {
   const { user, signOut } = useAuth();
+  const router = useRouter();
   const [openings, setOpenings] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showRandomModal, setShowRandomModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -44,7 +139,7 @@ export default function Home() {
 
   async function handleCreate(data) {
     try {
-      const opening = await createOpening(user.uid, data);
+      const opening = await createOpening(user, data);
       setOpenings((prev) => [opening, ...prev]);
       setShowModal(false);
     } catch {
@@ -62,6 +157,38 @@ export default function Home() {
     } catch {
       setError('Failed to delete opening.');
     }
+  }
+
+  async function handleToggleFavorite(op, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = !op.isFavorite;
+    setOpenings((prev) => prev.map((o) => o.id === op.id ? { ...o, isFavorite: next } : o));
+    try {
+      await patchOpening(op.id, { isFavorite: next });
+    } catch {
+      setOpenings((prev) => prev.map((o) => o.id === op.id ? { ...o, isFavorite: op.isFavorite } : o));
+    }
+  }
+
+  function handleRandomPractice(pool) {
+    const source = pool === 'favorites' ? openings.filter((o) => o.isFavorite) : openings;
+    if (source.length === 0) {
+      setError(pool === 'favorites' ? 'No favorites yet — star some openings first.' : 'No openings yet.');
+      setShowRandomModal(false);
+      return;
+    }
+    const opening = source[Math.floor(Math.random() * source.length)];
+    const variants = getAllVariants(opening.root).filter((p) => p.length > 1);
+    if (variants.length === 0) {
+      setError(`"${opening.name}" has no moves yet.`);
+      setShowRandomModal(false);
+      return;
+    }
+    const variant = variants[Math.floor(Math.random() * variants.length)];
+    const pathIds = variant.map((n) => n.id).join(',');
+    setShowRandomModal(false);
+    router.push(`/opening/${opening.id}/practice?path=${pathIds}`);
   }
 
   function formatDate(iso) {
@@ -84,6 +211,7 @@ export default function Home() {
           </div>
 
           <div className="header-right">
+            <Link href="/explore" className="nav-link-explore">Explore</Link>
             {/* User info + sign out */}
             <div className="user-info">
               {user.photoURL && (
@@ -124,10 +252,15 @@ export default function Home() {
         ) : (
           <>
             <div className="section-head">
-              <h2>Repertoire</h2>
-              <span className="count-badge">
-                {openings.length} {openings.length === 1 ? 'opening' : 'openings'}
-              </span>
+              <div className="section-head-left">
+                <h2>Repertoire</h2>
+                <span className="count-badge">
+                  {openings.length} {openings.length === 1 ? 'opening' : 'openings'}
+                </span>
+              </div>
+              <button className="btn-random" onClick={() => setShowRandomModal(true)} title="Practice a random opening">
+                ⚡ Random Practice
+              </button>
             </div>
 
             <div className="grid">
@@ -140,12 +273,21 @@ export default function Home() {
                       <div className={`card-badge ${op.color === 'white' ? 'badge-white' : 'badge-black'}`}>
                         {op.color === 'white' ? '♔ White' : '♚ Black'}
                       </div>
-                      <button
-                        className="delete-btn"
-                        onClick={(e) => handleDelete(op.id, e)}
-                        aria-label="Delete opening"
-                        title="Delete"
-                      >✕</button>
+                      <div className="card-actions">
+                        {op.isPublic && <span className="public-dot" title="Public opening">🌐</span>}
+                        <button
+                          className={`star-btn ${op.isFavorite ? 'starred' : ''}`}
+                          onClick={(e) => handleToggleFavorite(op, e)}
+                          aria-label={op.isFavorite ? 'Unfavorite' : 'Favorite'}
+                          title={op.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                        >★</button>
+                        <button
+                          className="delete-btn"
+                          onClick={(e) => handleDelete(op.id, e)}
+                          aria-label="Delete opening"
+                          title="Delete"
+                        >✕</button>
+                      </div>
                     </div>
 
                     <h3 className="card-name">{op.name}</h3>
@@ -183,6 +325,14 @@ export default function Home() {
         <CreateModal onClose={() => setShowModal(false)} onCreate={handleCreate} />
       )}
 
+      {showRandomModal && (
+        <RandomPracticeModal
+          openings={openings}
+          onClose={() => setShowRandomModal(false)}
+          onGo={handleRandomPractice}
+        />
+      )}
+
       <Footer />
 
       <style jsx>{`
@@ -217,6 +367,16 @@ export default function Home() {
         }
 
         .logo-sub { font-size: 11px; color: var(--text-muted); letter-spacing: 0.05em; }
+
+        .nav-link-explore {
+          font-size: 13px;
+          color: var(--text-secondary);
+          text-decoration: none;
+          padding: 5px 10px;
+          border-radius: 3px;
+          transition: color 0.2s;
+        }
+        .nav-link-explore:hover { color: var(--accent-light); }
 
         .header-right { display: flex; align-items: center; gap: 14px; }
 
@@ -330,9 +490,36 @@ export default function Home() {
 
         .section-head {
           display: flex;
-          align-items: baseline;
+          align-items: center;
+          justify-content: space-between;
           gap: 14px;
           margin-bottom: 28px;
+          flex-wrap: wrap;
+        }
+
+        .section-head-left {
+          display: flex;
+          align-items: baseline;
+          gap: 14px;
+        }
+
+        .btn-random {
+          background: rgba(201,168,76,0.1);
+          border: 1px solid rgba(201,168,76,0.25);
+          color: var(--accent-light);
+          padding: 7px 16px;
+          font-family: var(--font-body);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          border-radius: 4px;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+
+        .btn-random:hover {
+          background: rgba(201,168,76,0.18);
+          border-color: rgba(201,168,76,0.45);
         }
 
         .section-head h2 {
@@ -397,6 +584,34 @@ export default function Home() {
           color: #c8a882;
           border: 1px solid rgba(150,110,70,0.25);
         }
+
+        .card-actions { display: flex; align-items: center; gap: 4px; }
+
+        .public-dot {
+          font-size: 11px;
+          opacity: 0.5;
+          cursor: default;
+        }
+
+        .star-btn {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          font-size: 14px;
+          padding: 2px 4px;
+          transition: all 0.2s;
+          opacity: 0;
+          line-height: 1;
+        }
+
+        .star-btn.starred {
+          color: var(--accent);
+          opacity: 1;
+        }
+
+        .card:hover .star-btn { opacity: 1; }
+        .star-btn:hover { color: var(--accent-light); }
 
         .delete-btn {
           background: none;
