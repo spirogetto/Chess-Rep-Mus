@@ -1,0 +1,19 @@
+{
+  "name": "chess-openings",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "chess.js": "^1.1.0",
+    "firebase": "^12.13.0",
+    "next": "latest",
+    "react": "^18",
+    "react-chessboard": "^4.7.2",
+    "react-dom": "^18"
+  }
+}
